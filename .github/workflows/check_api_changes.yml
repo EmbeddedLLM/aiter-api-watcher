@@ -71,6 +71,7 @@ jobs:
         if: env.HASH_CHANGED == 'true'
         run: |
           git clone --recursive https://github.com/ROCm/aiter.git
+          sed -i 's/raise RuntimeError("ROCm version file not found")/return "5.0.0"/' aiter/aiter/jit/utils/cpp_extension.py
           cd aiter
           python -m pip install -r requirements.txt
           python setup.py develop
