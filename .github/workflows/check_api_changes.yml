@@ -53,7 +53,7 @@ jobs:
             echo "First run, will check API"
             echo "HASH_CHANGED=true" >> $GITHUB_ENV
           fi
-          
+
       - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -65,7 +65,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install packaging setuptools wheel
-          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.3
+          pip install torch --index-url https://download.pytorch.org/whl/rocm6.3
 
       - name: Clone ROCm/aiter repository
         if: env.HASH_CHANGED == 'true'
