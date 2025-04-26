@@ -1,0 +1,114 @@
+name: Check ROCm/aiter API Changes
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  check_api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout monitoring repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for proper commit tracking
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Get latest commit info
+        id: get_latest_commit
+        run: |
+          LATEST_HASH=$(curl -s https://api.github.com/repos/ROCm/aiter/commits/main | jq -r .sha)
+          LATEST_DATE=$(curl -s https://api.github.com/repos/ROCm/aiter/commits/main | jq -r .commit.author.date | cut -dT -f1)
+          LATEST_MESSAGE=$(curl -s https://api.github.com/repos/ROCm/aiter/commits/main | jq -r .commit.message | head -n 1)
+          LATEST_SHORT_HASH=${LATEST_HASH:0:7}
+
+          # Clean commit message for filename use
+          CLEAN_MESSAGE=$(echo "$LATEST_MESSAGE" | tr -cd '[:alnum:] ._-' | tr ' ' '_' | cut -c 1-50)
+
+          echo "LATEST_HASH=$LATEST_HASH" >> $GITHUB_ENV
+          echo "LATEST_DATE=$LATEST_DATE" >> $GITHUB_ENV
+          echo "LATEST_MESSAGE=$LATEST_MESSAGE" >> $GITHUB_ENV
+          echo "LATEST_SHORT_HASH=$LATEST_SHORT_HASH" >> $GITHUB_ENV
+          echo "CLEAN_MESSAGE=$CLEAN_MESSAGE" >> $GITHUB_ENV
+
+      - name: Check if commit hash changed
+        id: check_hash
+        run: |
+          mkdir -p reports
+          if [ -f "last_checked_hash.txt" ]; then
+            LAST_HASH=$(cat last_checked_hash.txt)
+            if [ "$LAST_HASH" == "${{ env.LATEST_HASH }}" ]; then
+              echo "No new commits in ROCm/aiter, skipping check"
+              echo "HASH_CHANGED=false" >> $GITHUB_ENV
+            else
+              echo "New commits detected in ROCm/aiter"
+              echo "HASH_CHANGED=true" >> $GITHUB_ENV
+            fi
+          else
+            echo "First run, will check API"
+            echo "HASH_CHANGED=true" >> $GITHUB_ENV
+          fi
+
+      - name: Clone ROCm/aiter repository
+        if: env.HASH_CHANGED == 'true'
+        run: |
+          git clone --recursive https://github.com/ROCm/aiter.git
+          cd aiter
+          python setup.py develop
+
+      - name: Check API functions
+        if: env.HASH_CHANGED == 'true'
+        id: check_api
+        run: |
+          python check_api.py > api_check_output.txt
+          API_CHECK_STATUS=$?
+          echo "API_CHECK_STATUS=$API_CHECK_STATUS" >> $GITHUB_ENV
+
+          # Create report filename with date, hash and commit message
+          REPORT_FILENAME="reports/${{ env.LATEST_DATE }}_${{ env.LATEST_SHORT_HASH }}_${{ env.CLEAN_MESSAGE }}.md"
+          echo "REPORT_FILENAME=$REPORT_FILENAME" >> $GITHUB_ENV
+
+          # Generate the report
+          echo "# API Check Report for ROCm/aiter" > $REPORT_FILENAME
+          echo "" >> $REPORT_FILENAME
+          echo "## Commit Information" >> $REPORT_FILENAME
+          echo "- **Date:** ${{ env.LATEST_DATE }}" >> $REPORT_FILENAME
+          echo "- **Commit:** [${{ env.LATEST_SHORT_HASH }}](https://github.com/ROCm/aiter/commit/${{ env.LATEST_HASH }})" >> $REPORT_FILENAME
+          echo "- **Message:** ${{ env.LATEST_MESSAGE }}" >> $REPORT_FILENAME
+          echo "" >> $REPORT_FILENAME
+          echo "## API Check Results" >> $REPORT_FILENAME
+          echo "```" >> $REPORT_FILENAME
+          cat api_check_output.txt >> $REPORT_FILENAME
+          echo "```" >> $REPORT_FILENAME
+          echo "" >> $REPORT_FILENAME
+
+          if [ $API_CHECK_STATUS -eq 0 ]; then
+            echo "### Status: ✅ All APIs Available" >> $REPORT_FILENAME
+          else
+            echo "### Status: ❌ API Changes Detected" >> $REPORT_FILENAME
+          fi
+
+      - name: Create issue if API changed
+        if: env.HASH_CHANGED == 'true' && env.API_CHECK_STATUS != '0'
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT_PATH: ${{ env.REPORT_FILENAME }}
+        with:
+          filename: .github/ISSUE_TEMPLATE/api_change.md
+
+      - name: Update last checked hash
+        if: env.HASH_CHANGED == 'true'
+        run: |
+          echo "${{ env.LATEST_HASH }}" > last_checked_hash.txt
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add last_checked_hash.txt
+          git add reports/
+          git commit -m "Update API check report for ${{ env.LATEST_SHORT_HASH }}" || echo "No changes to commit"
+          git push || echo "No changes to push"
