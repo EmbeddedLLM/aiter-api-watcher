@@ -53,6 +53,13 @@ jobs:
             echo "First run, will check API"
             echo "HASH_CHANGED=true" >> $GITHUB_ENV
           fi
+          
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/lib/android
+          sudo apt-get clean
 
       - name: Install dependencies
         run: |
