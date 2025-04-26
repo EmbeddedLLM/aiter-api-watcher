@@ -66,15 +66,29 @@ jobs:
           python -m pip install --upgrade pip
           pip install packaging setuptools wheel
           pip install torch --index-url https://download.pytorch.org/whl/rocm6.3
-
-      - name: Clone ROCm/aiter repository
-        if: env.HASH_CHANGED == 'true'
+          
+      - name: Clone ROCm/aiter (shallow)
         run: |
-          git clone --recursive https://github.com/ROCm/aiter.git
-          sed -i 's/raise RuntimeError("ROCm version file not found")/return "5.0.0"/' aiter/aiter/jit/utils/cpp_extension.py
+          git clone --depth 1 --recursive https://github.com/ROCm/aiter.git
           cd aiter
-          python -m pip install -r requirements.txt
-          python setup.py develop
+          git log -1 --pretty=format:"%H %s" > ../last_commit.txt
+
+      - name: Patch cpp_extension.py to fake ROCm
+        run: |
+          cd aiter/aiter/jit/utils
+          # Replace get_hip_version to return a fake version
+          sed -i 's/raise RuntimeError("ROCm version file not found")/return "5.0.0"/' cpp_extension.py
+          # Force IS_HIP_EXTENSION = True
+          echo "IS_HIP_EXTENSION = True" >> cpp_extension.py
+          echo "ROCM_HOME = \"/opt/rocm\"" >> cpp_extension.py
+          echo "HIP_HOME = \"/opt/rocm/hip\"" >> cpp_extension.py
+          echo "HIP_VERSION = \"5.0.0\"" >> cpp_extension.py
+          echo "ROCM_VERSION = (5, 0)" >> cpp_extension.py
+
+      - name: Install aiter (setup.py develop)
+        run: |
+          cd aiter
+          python3 setup.py develop
 
       - name: Check API functions
         if: env.HASH_CHANGED == 'true'
