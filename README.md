@@ -38,7 +38,9 @@
 
 2. Create a file named `aiter_api_watcher_config.json` using `template_to_initialize_aiter_api_watcher_config.json`.
 
-3. Run the following command: (replace the GITHUB_TOKEN with your GITHUB token)
+3. Update `"notification_repo": "EmbeddedLLM/aiter-api-watcher"` to point to your repository
+
+4. Run the following command: (replace the GITHUB_TOKEN with your GITHUB token)
 ```
    docker run -it \
       --network=host \
@@ -55,7 +57,7 @@
 ```
 
 
-4. The aiter_api_watcher.py will generates a log to `aiter_api_watcher.log`.
+5. The aiter_api_watcher.py will generates a log to `aiter_api_watcher.log`.
 
 Example content of the `aiter_api_watcher.log`:
 

@@ -49,6 +49,7 @@ def load_config():
             "last_checked_commit": "",
             "start_commit": "",  # User can specify which commit to start with
             "repository_url": "https://github.com/ROCm/aiter.git",
+            "notification_repo": "EmbeddedLLM/aiter-api-watcher",
             "commit_list": [],
             "compare_pair": []
         }
@@ -601,6 +602,8 @@ def main_loop():
     """Main loop to periodically check for API changes"""
     config = load_config()
     check_interval = config.get("check_interval_seconds", CHECK_INTERVAL)
+    global NOTIFICATION_REPO
+    NOTIFICATION_REPO = config.get("notification_repo", "EmbeddedLLM/aiter-api-watcher")
 
     logger.info("Starting aiter API watcher")
     logger.info(f"Monitoring {len(config['functions_to_monitor'])} functions")
