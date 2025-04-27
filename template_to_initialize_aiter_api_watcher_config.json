@@ -57,6 +57,7 @@
     "last_checked_commit": "",
     "start_commit": "",
     "repository_url": "https://github.com/ROCm/aiter.git",
+    "notification_repo": "EmbeddedLLM/aiter-api-watcher",
     "commit_list": [],
     "compare_pair": []
 }
