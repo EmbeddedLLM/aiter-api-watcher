@@ -1,24 +1,62 @@
 {
   "functions_to_monitor": [
     {
-      "import_statement": "from aiter import fmoe_fp8_blockscale_g1u1",
-      "function_path": "fmoe_fp8_blockscale_g1u1"
+        "import_statement": "from aiter import gemm_a8w8_CK",
+        "function_path": "gemm_a8w8_CK"
     },
     {
-      "import_statement": "import aiter.fused_moe_bf16_asm as rocm_aiter_asm_fmoe",
-      "function_path": "rocm_aiter_asm_fmoe.moe_sorting_ck"
+        "import_statement": "from aiter.ops.shuffle import shuffle_weight",
+        "function_path": "shuffle_weight"
     },
     {
-      "import_statement": "import aiter.fused_moe_bf16_asm as rocm_aiter_asm_fmoe",
-      "function_path": "rocm_aiter_asm_fmoe.asm_moe"
+        "import_statement": "from aiter import flash_attn_varlen_func",
+        "function_path": "flash_attn_varlen_func"
     },
     {
-      "import_statement": "from aiter.fused_moe_bf16_asm import ck_moe_2stages",
-      "function_path": "ck_moe_2stages"
+        "import_statement": "import aiter as rocm_aiter",
+        "function_path": "rocm_aiter.reshape_and_cache_with_pertoken_quant"
+    },
+    {
+        "import_statement": "import aiter as rocm_aiter",
+        "function_path": "rocm_aiter.pa_fwd_asm"
+    },
+    {
+        "import_statement": "from aiter import topk_softmax",
+        "function_path": "topk_softmax"
+    },
+    {
+        "import_statement": "from aiter.mla import mla_decode_fwd",
+        "function_path": "mla_decode_fwd"
+    },
+    {
+        "import_statement": "import aiter as rocm_aiter",
+        "function_path": "rocm_aiter.rms_norm"
+    },
+    {
+        "import_statement": "import aiter as rocm_aiter",
+        "function_path": "rocm_aiter.rmsnorm2d_fwd_with_add"
+    },
+    {
+        "import_statement": "import aiter.fused_moe_bf16_asm as rocm_aiter_asm_fmoe",
+        "function_path": "rocm_aiter_asm_fmoe.moe_sorting_ck"
+    },
+    {
+        "import_statement": "import aiter.fused_moe_bf16_asm as rocm_aiter_asm_fmoe",
+        "function_path": "rocm_aiter_asm_fmoe.asm_moe"
+    },
+    {
+        "import_statement": "from aiter.fused_moe_bf16_asm import asm_moe_tkw1",
+        "function_path": "asm_moe_tkw1"
+    },
+    {
+        "import_statement": "from aiter.fused_moe_bf16_asm import ck_moe_2stages",
+        "function_path": "ck_moe_2stages"
     }
   ],
   "check_interval_seconds": 3600,
-  "last_checked_commit": "365bd25a3f97673b291bc42f1459fbb51bf1c634",
+  "last_checked_commit": "28ceb1e2299c904229af0e45c38dde0efa7d14fb",
   "start_commit": "365bd25a3f97673b291bc42f1459fbb51bf1c634",
-  "repository_url": "https://github.com/ROCm/aiter.git"
+  "repository_url": "https://github.com/ROCm/aiter.git",
+  "commit_list": [],
+  "compare_pair": []
 }

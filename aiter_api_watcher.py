@@ -48,7 +48,9 @@ def load_config():
             "check_interval_seconds": CHECK_INTERVAL,
             "last_checked_commit": "",
             "start_commit": "",  # User can specify which commit to start with
-            "repository_url": "https://github.com/ROCm/aiter.git"
+            "repository_url": "https://github.com/ROCm/aiter.git",
+            "commit_list": [],
+            "compare_pair": []
         }
         with open(CONFIG_FILE, 'w') as f:
             json.dump(default_config, f, indent=2)
@@ -307,8 +309,164 @@ def compare_parameters(prev_params, curr_params):
 
     return changes if changes else ["No parameter changes detected"]
 
+def compare_two_commits(config, old_commit, new_commit):
+    """Compare two specific commits"""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        subprocess.run(["git", "clone", config["repository_url"], temp_dir], check=True)
+
+        # Checkout old commit
+        subprocess.run(["git", "checkout", old_commit], cwd=temp_dir, check=True)
+        subprocess.run(["git", "submodule", "update", "--init", "--recursive"], cwd=temp_dir, check=True)
+        subprocess.run([sys.executable, "setup.py", "develop"], cwd=temp_dir, check=True)
+
+        old_signatures = {}
+        for func_config in config["functions_to_monitor"]:
+            old_signatures[func_config["function_path"]] = check_function_in_subprocess(
+                temp_dir, func_config["import_statement"], func_config["function_path"]
+            )
+
+        # Checkout new commit
+        subprocess.run(["git", "checkout", new_commit], cwd=temp_dir, check=True)
+        subprocess.run(["git", "submodule", "update", "--init", "--recursive"], cwd=temp_dir, check=True)
+        subprocess.run([sys.executable, "setup.py", "develop"], cwd=temp_dir, check=True)
+
+        for func_config in config["functions_to_monitor"]:
+            new_signature = check_function_in_subprocess(
+                temp_dir, func_config["import_statement"], func_config["function_path"]
+            )
+
+            old_signature = old_signatures.get(func_config["function_path"], {})
+
+            if (old_signature.get("exists") != new_signature.get("exists") or
+                old_signature.get("signature") != new_signature.get("signature")):
+
+                param_changes = compare_parameters(
+                    old_signature.get("parameters"),
+                    new_signature.get("parameters")
+                )
+
+                title = f"API Change Detected (Compare Mode): {func_config['function_path']}"
+                body = f"""## API Change Detected (Compare Mode)
+
+Function: `{func_config['function_path']}`
+Import: `{func_config['import_statement']}`
+Old Commit: {old_commit}
+New Commit: {new_commit}
+
+### Old Signature
+{old_signature.get('signature', 'N/A')}
+
+### New Signature
+{new_signature.get('signature', 'N/A')}
+
+### Parameter Changes
+{chr(10).join(f"- {change}" for change in param_changes)}
+
+### Error (if any)
+```
+{new_signature.get('error', 'No error')}
+```
+"""
+                create_github_issue(title, body)
+            else:
+                logger.info(f"No API change for {func_config['function_path']} between {old_commit} and {new_commit}")
+
+
+def process_commit_list(config):
+    """Process a list of commits in order"""
+    commit_list = config["commit_list"]
+
+    if not commit_list:
+        logger.info("No commits specified in commit_list")
+        return
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        subprocess.run(["git", "clone", config["repository_url"], temp_dir], check=True)
+
+        # Process commits in order
+        for commit in commit_list:
+            logger.info(f"Processing commit {commit}")
+            try:
+                subprocess.run(["git", "checkout", commit], cwd=temp_dir, check=True)
+                subprocess.run(["git", "submodule", "update", "--init", "--recursive"], cwd=temp_dir, check=True)
+                subprocess.run([sys.executable, "setup.py", "develop"], cwd=temp_dir, check=True)
+
+                for func_config in config["functions_to_monitor"]:
+                    import_statement = func_config["import_statement"]
+                    function_path = func_config["function_path"]
+
+                    current_signature = check_function_in_subprocess(
+                        temp_dir, import_statement, function_path
+                    )
+
+                    previous_signature = func_config.get("last_signature", {})
+
+                    if not previous_signature:
+                        func_config["last_signature"] = current_signature
+                        logger.info(f"Initial signature for {function_path}: {current_signature.get('signature', 'Not available')}")
+                    elif (previous_signature.get("exists") != current_signature["exists"] or
+                          previous_signature.get("signature") != current_signature["signature"]):
+
+                        param_changes = compare_parameters(
+                            previous_signature.get("parameters"),
+                            current_signature.get("parameters")
+                        )
+
+                        title = f"API Change Detected: {function_path}"
+                        body = f"""## API Change Detected
+
+Function: `{function_path}`
+Import: `{import_statement}`
+Commit: {commit}
+
+### Previous State
+{previous_signature.get('signature', 'N/A')}
+
+### Current State
+{current_signature.get('signature', 'N/A')}
+
+### Parameter Changes
+{chr(10).join(f"- {change}" for change in param_changes)}
+
+### Error (if any)
+```
+{current_signature.get('error', 'No error')}
+```
+"""
+                        create_github_issue(title, body)
+
+                        func_config["last_signature"] = current_signature
+                        logger.info(f"API change detected for {function_path}")
+                    else:
+                        logger.info(f"No API change for {function_path}")
+
+            except Exception as e:
+                logger.error(f"Error processing commit {commit}: {e}")
+                logger.error(traceback.format_exc())
+
+        # After processing, clear commit_list and continue normal monitoring
+        config["commit_list"] = []
+        save_config(config)
+        logger.info("Finished processing commit list. Resuming normal monitoring.")
+
+
 def check_api_changes(config):
     """Check for API changes in the monitored functions"""
+
+    # Mode 3: Compare two specific commits
+    if config.get("compare_pair"):
+        old_commit, new_commit = config["compare_pair"]
+        logger.info(f"Comparing two commits: {old_commit} -> {new_commit}")
+        compare_two_commits(config, old_commit, new_commit)
+        return 3
+
+    # Mode 2: Process a list of commits
+    if config.get("commit_list"):
+        logger.info(f"Processing specified commit list: {config['commit_list']}")
+        process_commit_list(config)
+        return 2
+
+    # Default Mode 1: Monitor latest commits
     latest_commit = get_latest_commit(config["repository_url"])
 
     if not latest_commit:
@@ -451,7 +609,10 @@ def main_loop():
     while True:
         try:
             logger.info("Checking for API changes...")
-            check_api_changes(config)
+            mode = check_api_changes(config)
+            if mode == 3:
+                logger.info("Exiting after comparing two commits")
+                break
             logger.info(f"Next check in {check_interval} seconds")
             time.sleep(check_interval)
         except KeyboardInterrupt:

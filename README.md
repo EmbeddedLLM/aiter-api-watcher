@@ -1,8 +1,44 @@
 # How to use
 
-1. git clone this repository.
+## ✅ Summary
 
-2. Run the following command: (replace the GITHUB_TOKEN with your GITHUB token)
+| Mode | Description | Config Field |
+|:----|:------------|:-------------|
+| 1 | Continuous monitoring | None |
+| 2 | Process a list of commits | `commit_list` |
+| 3 | Compare two commits | `compare_pair` |
+
+
+## Type of Usage:
+1. Monitor all commits since `start_commit`:
+2. Specify a list of aiter commits to check in order. After finishing the list, it will continue normal monitoring.
+```json
+...
+"commit_list": [
+    "commit_hash1",
+    "commit_hash2",
+    "commit_hash3"
+]
+...
+```
+3. Compare two specific commits only. Script will exit after comparison.
+```json
+...
+"compare_pair": [
+    "old_commit_hash",
+    "new_commit_hash"
+]
+...
+``` 
+
+
+## Usage Method 1:
+
+1. Fork this repository. Then git clone the repository.
+
+2. Create a file named `aiter_api_watcher_config.json` using `template_to_initialize_aiter_api_watcher_config.json`.
+
+3. Run the following command: (replace the GITHUB_TOKEN with your GITHUB token)
 ```
    docker run -it \
       --network=host \
@@ -19,11 +55,11 @@
 ```
 
 
-3. The aiter_api_watcher.py will generates a log to `aiter_api_watcher.log`.
+4. The aiter_api_watcher.py will generates a log to `aiter_api_watcher.log`.
 
 Example content of the `aiter_api_watcher.log`:
 
-```console
+```text
 2025-04-26 17:41:54,547 - aiter_api_watcher - INFO - Starting aiter API watcher
 2025-04-26 17:41:54,547 - aiter_api_watcher - INFO - Monitoring 4 functions
 2025-04-26 17:41:54,547 - aiter_api_watcher - INFO - Check interval: 3600 seconds
@@ -79,3 +115,53 @@ Example content of the `aiter_api_watcher.log`:
 2025-04-26 17:47:45,163 - aiter_api_watcher - INFO - No API change for rocm_aiter_asm_fmoe.moe_sorting_ck
 2025-04-26 17:47:58,255 - aiter_api_watcher - INFO - No API change for rocm_aiter_asm_fmoe.asm_moe
 ```
+
+## Usage Method 2:
+Follow the steps in Usage Method 1, with the following changes:
+
+1. Specify a list of aiter commits to check in order. After finishing the list, it will continue normal monitoring.
+```json
+...
+"commit_list": [
+    "commit_hash1",
+    "commit_hash2",
+    "commit_hash3"
+]
+...
+```
+
+Run the command as in Usage Method 1.
+
+## Usage Method 2:
+Follow the steps in Usage Method 1, with the following changes:
+
+1. Specify a list of aiter commits to check in order. After finishing the list, it will continue normal monitoring.
+```json
+...
+"compare_pair": [
+    "old_commit_hash",
+    "new_commit_hash"
+]
+...
+```
+
+Example console logs:
+```console
+...
+2025-04-27 15:23:42,995 - aiter_api_watcher - INFO - No API change for gemm_a8w8_CK between 365bd25a3f97673b291bc42f1459fbb51bf1c634 and 28ceb1e2299c904229af0e45c38dde0efa7d14fb
+2025-04-27 15:23:56,000 - aiter_api_watcher - INFO - No API change for shuffle_weight between 365bd25a3f97673b291bc42f1459fbb51bf1c634 and 28ceb1e2299c904229af0e45c38dde0efa7d14fb
+2025-04-27 15:23:56,449 - aiter_api_watcher - INFO - Exiting after comparing two commits
+```
+
+Example logs:
+```text
+2025-04-27 15:22:28,295 - aiter_api_watcher - INFO - Starting aiter API watcher
+2025-04-27 15:22:28,295 - aiter_api_watcher - INFO - Monitoring 2 functions
+2025-04-27 15:22:28,295 - aiter_api_watcher - INFO - Check interval: 3600 seconds
+2025-04-27 15:22:28,295 - aiter_api_watcher - INFO - Checking for API changes...
+2025-04-27 15:22:28,295 - aiter_api_watcher - INFO - Comparing two commits: 365bd25a3f97673b291bc42f1459fbb51bf1c634 -> 28ceb1e2299c904229af0e45c38dde0efa7d14fb
+2025-04-27 15:23:42,995 - aiter_api_watcher - INFO - No API change for gemm_a8w8_CK between 365bd25a3f97673b291bc42f1459fbb51bf1c634 and 28ceb1e2299c904229af0e45c38dde0efa7d14fb
+2025-04-27 15:23:56,000 - aiter_api_watcher - INFO - No API change for shuffle_weight between 365bd25a3f97673b291bc42f1459fbb51bf1c634 and 28ceb1e2299c904229af0e45c38dde0efa7d14fb
+2025-04-27 15:23:56,449 - aiter_api_watcher - INFO - Exiting after comparing two commits
+```
+
