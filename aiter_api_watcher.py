@@ -27,6 +27,7 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 NOTIFICATION_REPO = "EmbeddedLLM/aiter-api-watcher"
 CHECK_INTERVAL = 3600  # Check every hour by default
 
+
 def load_config():
     """Load configuration from JSON file"""
     if not os.path.exists(CONFIG_FILE):
@@ -345,8 +346,10 @@ def compare_two_commits(config, old_commit, new_commit):
                     old_signature.get("parameters"),
                     new_signature.get("parameters")
                 )
-
-                title = f"API Change Detected (Compare Mode): {func_config['function_path']}"
+                commit_info = get_commit_info(temp_dir, new_commit)
+                commit_date = commit_info.get("date", "Unknown").split()[0]  # Only keep YYYY-MM-DD
+                short_commit = new_commit[:7]
+                title = f"[{commit_date} {short_commit}] API Change Detected (Compare Mode): {func_config['function_path']}"
                 body = f"""## API Change Detected (Compare Mode)
 
 Function: `{func_config['function_path']}`
@@ -392,6 +395,10 @@ def process_commit_list(config):
                 subprocess.run(["git", "submodule", "update", "--init", "--recursive"], cwd=temp_dir, check=True)
                 subprocess.run([sys.executable, "setup.py", "develop"], cwd=temp_dir, check=True)
 
+                commit_info = get_commit_info(temp_dir, commit)
+                commit_date = commit_info.get("date", "Unknown").split()[0]
+                short_commit = commit[:7]
+
                 for func_config in config["functions_to_monitor"]:
                     import_statement = func_config["import_statement"]
                     function_path = func_config["function_path"]
@@ -413,7 +420,7 @@ def process_commit_list(config):
                             current_signature.get("parameters")
                         )
 
-                        title = f"API Change Detected: {function_path}"
+                        title = f"[{commit_date} {short_commit}] API Change Detected: {function_path}"
                         body = f"""## API Change Detected
 
 Function: `{function_path}`
@@ -554,7 +561,9 @@ def check_api_changes(config):
                             )
 
                             # API has changed, create a GitHub issue
-                            title = f"API Change Detected: {function_path}"
+                            commit_date = commit_info.get("date", "Unknown").split()[0]  # Only keep YYYY-MM-DD
+                            short_commit = commit[:7]
+                            title = f"[{commit_date} {short_commit}] API Change Detected: {function_path}"
 
                             body = f"""## API Change Detected
 
